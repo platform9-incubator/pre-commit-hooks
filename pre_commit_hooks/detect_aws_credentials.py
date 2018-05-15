@@ -1,3 +1,6 @@
+"""
+Detect AWS credentials
+"""
 from __future__ import print_function
 from __future__ import unicode_literals
 
@@ -11,20 +14,19 @@ def get_aws_credential_files_from_env():
     """Extract credential file paths from environment variables."""
     files = set()
     for env_var in (
-        'AWS_CONFIG_FILE', 'AWS_CREDENTIAL_FILE', 'AWS_SHARED_CREDENTIALS_FILE',
-        'BOTO_CONFIG',
+            'AWS_CONFIG_FILE', 'AWS_CREDENTIAL_FILE', 'AWS_SHARED_CREDENTIALS_FILE',
+            'BOTO_CONFIG',
     ):
         if env_var in os.environ:
             files.add(os.environ[env_var])
     return files
 
 
-def get_aws_secrets_from_env():
+def get_aws_secrets_from_env(env_vars):
     """Extract AWS secrets from environment variables."""
     keys = set()
-    for env_var in (
-        'AWS_SECRET_ACCESS_KEY', 'AWS_SECURITY_TOKEN', 'AWS_SESSION_TOKEN',
-    ):
+    print("Looking for AWS secrets in the follow env vars:{} ".format(env_vars))
+    for env_var in  env_vars:
         if env_var in os.environ:
             keys.add(os.environ[env_var])
     return keys
@@ -49,8 +51,8 @@ def get_aws_secrets_from_file(credentials_file):
     keys = set()
     for section in parser.sections():
         for var in (
-            'aws_secret_access_key', 'aws_security_token',
-            'aws_session_token',
+                'aws_secret_access_key', 'aws_security_token',
+                'aws_session_token',
         ):
             try:
                 key = parser.get(section, var).strip()
@@ -83,6 +85,9 @@ def check_file_for_aws_keys(filenames, keys):
 
 
 def main(argv=None):
+    """
+    Main entry point for the program
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+', help='Filenames to run')
     parser.add_argument(
@@ -98,6 +103,18 @@ def main(argv=None):
         ),
     )
     parser.add_argument(
+        '--env-vars',
+        dest='env_vars',
+        action='append',
+        default=[
+            'AWS_SECRET_ACCESS_KEY', 'AWS_SECURITY_TOKEN', 'AWS_SESSION_TOKEN',
+        ],
+        help=(
+            'Additional AWS env vars from which to get '
+            'secret keys from'
+        ),
+    )
+    parser.add_argument(
         '--allow-missing-credentials',
         dest='allow_missing_credentials',
         action='store_true',
@@ -106,6 +123,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     credential_files = set(args.credential_files)
+    env_vars = set(args.env_vars)
 
     # Add the credentials files configured via environment variables to the set
     # of files to to gather AWS secrets from.
@@ -117,7 +135,7 @@ def main(argv=None):
 
     # Secrets might be part of environment variables, so add such secrets to
     # the set of keys.
-    keys |= get_aws_secrets_from_env()
+    keys |= get_aws_secrets_from_env(env_vars)
 
     if not keys and args.allow_missing_credentials:
         return 0
@@ -135,9 +153,7 @@ def main(argv=None):
         for bad_file in bad_filenames:
             print('AWS secret found in {filename}: {key}'.format(**bad_file))
         return 1
-    else:
-        return 0
-
+    return 0
 
 if __name__ == '__main__':
     exit(main())
