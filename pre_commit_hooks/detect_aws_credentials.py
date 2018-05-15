@@ -25,7 +25,6 @@ def get_aws_credential_files_from_env():
 def get_aws_secrets_from_env(env_vars):
     """Extract AWS secrets from environment variables."""
     keys = set()
-    print("Looking for AWS secrets in the follow env vars:{} ".format(env_vars))
     for env_var in  env_vars:
         if env_var in os.environ:
             keys.add(os.environ[env_var])
